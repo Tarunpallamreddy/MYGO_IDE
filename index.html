@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MYGO IDE - Advanced Cloud Development Platform</title>
+  <meta name="description" content="A premium web-based development environment for MYGO applications, featuring interactive coding, compilation simulation, and cloud integration.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons for developer tools -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+  <div id="app-container" class="app-layout">
+    
+    <!-- Top Control Bar -->
+    <header class="top-bar" id="ide-header">
+      <div class="logo-area">
+        <div class="logo-icon"><i class="fa-solid fa-compass-drafting"></i></div>
+        <h1>MYGO <span class="accent-text">IDE</span></h1>
+        <span class="badge">v1.0.0-Beta</span>
+      </div>
+      
+      <div class="workspace-status">
+        <div class="status-indicator connected"></div>
+        <span id="workspace-name">Workspace: mygo_mobile_project</span>
+      </div>
+
+      <div class="editor-controls">
+        <button id="run-btn" class="control-btn run-btn" title="Run Project (F5)">
+          <i class="fa-solid fa-play"></i> Run Code
+        </button>
+        <button id="save-btn" class="control-btn" title="Save File (Ctrl+S)">
+          <i class="fa-solid fa-floppy-disk"></i> Save
+        </button>
+        <button id="theme-btn" class="control-btn" title="Toggle Theme">
+          <i class="fa-solid fa-circle-half-stroke"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-workbench">
+      
+      <!-- Left Sidebar: File Tree & Navigation -->
+      <aside class="sidebar" id="ide-sidebar">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" title="Explorer"><i class="fa-regular fa-folder-open"></i></button>
+          <button class="sidebar-tab" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <button class="sidebar-tab" title="Source Control"><i class="fa-solid fa-code-branch"></i></button>
+          <button class="sidebar-tab" title="Extensions"><i class="fa-solid fa-cubes"></i></button>
+        </div>
+        
+        <div class="sidebar-content">
+          <div class="panel-header">
+            <h3>EXPLORER</h3>
+            <div class="panel-actions">
+              <button title="New File" id="new-file-btn"><i class="fa-solid fa-file-circle-plus"></i></button>
+              <button title="New Folder" id="new-folder-btn"><i class="fa-solid fa-folder-plus"></i></button>
+              <button title="Refresh" id="refresh-explorer-btn"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+          </div>
+          
+          <div class="file-tree" id="file-tree-root">
+            <!-- Root Folder -->
+            <div class="tree-item folder expanded" data-path="mygo_mobile_project">
+              <span class="tree-label"><i class="fa-solid fa-chevron-down toggle-icon"></i><i class="fa-regular fa-folder-open folder-icon"></i>mygo_mobile_project</span>
+              
+              <div class="tree-children">
+                
+                <!-- mobile (React Native / Expo) -->
+                <div class="tree-item folder expanded" data-path="mygo_mobile_project/mobile">
+                  <span class="tree-label"><i class="fa-solid fa-chevron-down toggle-icon"></i><i class="fa-regular fa-folder-open folder-icon"></i>mobile</span>
+                  <div class="tree-children">
+                    <div class="tree-item file active" data-path="mygo_mobile_project/mobile/App.tsx">
+                      <span class="tree-label"><i class="fa-solid fa-code tsx-icon"></i>App.tsx</span>
+                    </div>
+                    <div class="tree-item file" data-path="mygo_mobile_project/mobile/app.json">
+                      <span class="tree-label"><i class="fa-solid fa-gear json-icon"></i>app.json</span>
+                    </div>
+                    <div class="tree-item file" data-path="mygo_mobile_project/mobile/package.json">
+                      <span class="tree-label"><i class="fa-solid fa-square-js js-icon"></i>package.json</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- api (.NET API) -->
+                <div class="tree-item folder expanded" data-path="mygo_mobile_project/api">
+                  <span class="tree-label"><i class="fa-solid fa-chevron-down toggle-icon"></i><i class="fa-regular fa-folder-open folder-icon"></i>api</span>
+                  <div class="tree-children">
+                    <div class="tree-item folder expanded" data-path="mygo_mobile_project/api/MyGo.API">
+                      <span class="tree-label"><i class="fa-solid fa-chevron-down toggle-icon"></i><i class="fa-regular fa-folder-open folder-icon"></i>MyGo.API</span>
+                      <div class="tree-children">
+                        <div class="tree-item file" data-path="mygo_mobile_project/api/MyGo.API/Program.cs">
+                          <span class="tree-label"><i class="fa-solid fa-hashtag cs-icon"></i>Program.cs</span>
+                        </div>
+                        <div class="tree-item file" data-path="mygo_mobile_project/api/MyGo.API/MyGo.API.csproj">
+                          <span class="tree-label"><i class="fa-solid fa-file-code xml-icon"></i>MyGo.API.csproj</span>
+                        </div>
+                        <div class="tree-item file" data-path="mygo_mobile_project/api/MyGo.API/appsettings.json">
+                          <span class="tree-label"><i class="fa-solid fa-gear json-icon"></i>appsettings.json</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center & Bottom: Code Editor & Terminal -->
+      <main class="editor-area">
+        <!-- Tab Bar -->
+        <div class="editor-tabs" id="editor-tabs-container">
+          <div class="tab active" data-path="mygo_mobile_project/mobile/App.tsx">
+            <span class="tab-name"><i class="fa-solid fa-code tsx-icon"></i> App.tsx</span>
+            <span class="tab-close"><i class="fa-solid fa-xmark"></i></span>
+          </div>
+        </div>
+
+        <!-- Editor Container -->
+        <div class="editor-container">
+          <div class="line-numbers" id="line-numbers-col">
+            <!-- Dynamically populated -->
+          </div>
+          <div class="code-viewport">
+            <textarea id="code-editor" spellcheck="false" autocomplete="off" wrap="off"></textarea>
+            <pre class="highlight-overlay" id="highlight-overlay"><code id="highlight-code"></code></pre>
+          </div>
+        </div>
+
+        <!-- Bottom Panel: Output / Terminal -->
+        <div class="console-panel" id="console-drawer">
+          <div class="console-header">
+            <div class="console-tabs">
+              <button class="console-tab active" data-panel="terminal">Terminal</button>
+              <button class="console-tab" data-panel="output">Output</button>
+              <button class="console-tab" data-panel="problems">Problems <span class="badge-count">0</span></button>
+            </div>
+            <div class="console-actions">
+              <button id="clear-console" title="Clear Console"><i class="fa-solid fa-ban"></i></button>
+              <button id="toggle-console" title="Toggle Console Panel"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+          </div>
+          <div class="console-body" id="console-output">
+            <!-- Simulated logs output -->
+            <div class="terminal-line system-msg">MYGO IDE Terminal Server v1.0.0 Initialized.</div>
+            <div class="terminal-line info-msg">Running on environment: LOCAL_WINDOWS_DESKTOP</div>
+            <div class="terminal-line">Type commands or press 'Run Code' to execute current project context.</div>
+            <div class="terminal-input-line">
+              <span class="prompt">mygo-user@desktop MINGW64 /mygo-project</span>
+              <span class="prompt-symbol">$</span>
+              <input type="text" id="terminal-input" autocomplete="off" placeholder="Run npm run dev, dotnet run..."/>
+            </div>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Custom Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
