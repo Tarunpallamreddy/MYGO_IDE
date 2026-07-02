@@ -8,8 +8,9 @@ import {
 import { useAppDispatch, useAppSelector } from '../store';
 import { 
   setSelectedPanel, closeFile, setActiveFile, toggleAISidebar, 
-  updateSettings, setUser, setToken 
+  updateSettings, setUser, setToken, setFileTree, openFile
 } from '../store/workspaceSlice';
+import { api } from '../services/api';
 
 // Side panels import
 import ExplorerPanel from './panels/ExplorerPanel';
@@ -99,20 +100,63 @@ export default function Layout() {
     dispatch(updateSettings({ theme: nextTheme }));
   };
 
+  const handleCreateFile = async () => {
+    const name = prompt("Enter new file path (relative to workspace root, e.g. backend/test.js):");
+    if (!name) return;
+    try {
+      await api.createItem(name, false);
+      const data = await api.getFileTree();
+      dispatch(setFileTree(data));
+      dispatch(openFile(name));
+      setOutputLogs(prev => [...prev, `[System] Created new file: ${name}`]);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Failed to create file.");
+    }
+  };
+
+  const handleOpenFilePrompt = () => {
+    const path = prompt("Enter file path to open (relative to workspace root, e.g. package.json):");
+    if (!path) return;
+    dispatch(openFile(path));
+  };
+
+  const handleSaveActiveFile = () => {
+    if (state.activeFile) {
+      window.dispatchEvent(new CustomEvent('mygo-save-active-file'));
+      setOutputLogs(prev => [...prev, `[System] Saving active file: ${state.activeFile}`]);
+    }
+  };
+
+  const handleToggleAutoSave = () => {
+    const nextVal = !state.settings.autosave;
+    dispatch(updateSettings({ autosave: nextVal }));
+    setOutputLogs(prev => [...prev, `[System] Auto Save toggled to: ${nextVal ? 'ON' : 'OFF'}`]);
+  };
+
+  const handleNextEditor = () => {
+    if (state.openFiles.length <= 1 || !state.activeFile) return;
+    const currentIndex = state.openFiles.indexOf(state.activeFile);
+    const nextIndex = (currentIndex + 1) % state.openFiles.length;
+    dispatch(setActiveFile(state.openFiles[nextIndex]));
+  };
+
+  const handlePrevEditor = () => {
+    if (state.openFiles.length <= 1 || !state.activeFile) return;
+    const currentIndex = state.openFiles.indexOf(state.activeFile);
+    const prevIndex = (currentIndex - 1 + state.openFiles.length) % state.openFiles.length;
+    dispatch(setActiveFile(state.openFiles[prevIndex]));
+  };
+
   const menus = [
     {
       id: 'file',
       label: 'File',
       items: [
-        { label: 'New Text File', shortcut: 'Ctrl+N', action: () => dispatch(setSelectedPanel('explorer')) },
-        { label: 'New File...', shortcut: 'Ctrl+Alt+Win+N', action: () => dispatch(setSelectedPanel('explorer')) },
-        { label: 'Open File...', shortcut: 'Ctrl+O', action: () => dispatch(setSelectedPanel('explorer')) },
-        { label: 'Save', shortcut: 'Ctrl+S', action: () => {
-          if (state.activeFile) {
-            setOutputLogs(prev => [...prev, `[System] Saved active file: ${state.activeFile}`]);
-          }
-        }},
-        { label: 'Auto Save', shortcut: 'Auto', action: () => {} },
+        { label: 'New Text File', shortcut: 'Ctrl+N', action: handleCreateFile },
+        { label: 'New File...', shortcut: 'Ctrl+Alt+Win+N', action: handleCreateFile },
+        { label: 'Open File...', shortcut: 'Ctrl+O', action: handleOpenFilePrompt },
+        { label: 'Save', shortcut: 'Ctrl+S', action: handleSaveActiveFile },
+        { label: state.settings.autosave ? 'Auto Save ✓' : 'Auto Save', shortcut: 'Auto', action: handleToggleAutoSave },
         { label: 'Preferences', action: toggleTheme },
         { label: 'Close Editor', shortcut: 'Ctrl+F4', action: () => {
           if (state.activeFile) dispatch(closeFile(state.activeFile));
@@ -124,26 +168,26 @@ export default function Layout() {
       id: 'edit',
       label: 'Edit',
       items: [
-        { label: 'Undo', shortcut: 'Ctrl+Z' },
-        { label: 'Redo', shortcut: 'Ctrl+Y' },
-        { label: 'Cut', shortcut: 'Ctrl+X' },
-        { label: 'Copy', shortcut: 'Ctrl+C' },
-        { label: 'Paste', shortcut: 'Ctrl+V' },
-        { label: 'Find', shortcut: 'Ctrl+F' },
-        { label: 'Replace', shortcut: 'Ctrl+H' }
+        { label: 'Undo', shortcut: 'Ctrl+Z', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'undo' })) },
+        { label: 'Redo', shortcut: 'Ctrl+Y', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'redo' })) },
+        { label: 'Cut', shortcut: 'Ctrl+X', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'cut' })) },
+        { label: 'Copy', shortcut: 'Ctrl+C', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'copy' })) },
+        { label: 'Paste', shortcut: 'Ctrl+V', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'paste' })) },
+        { label: 'Find', shortcut: 'Ctrl+F', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'find' })) },
+        { label: 'Replace', shortcut: 'Ctrl+H', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'replace' })) }
       ]
     },
     {
       id: 'selection',
       label: 'Selection',
       items: [
-        { label: 'Select All', shortcut: 'Ctrl+A' },
-        { label: 'Expand Selection', shortcut: 'Shift+Alt+Right' },
-        { label: 'Shrink Selection', shortcut: 'Shift+Alt+Left' },
-        { label: 'Copy Line Up', shortcut: 'Shift+Alt+Up' },
-        { label: 'Copy Line Down', shortcut: 'Shift+Alt+Down' },
-        { label: 'Move Line Up', shortcut: 'Alt+Up' },
-        { label: 'Move Line Down', shortcut: 'Alt+Down' }
+        { label: 'Select All', shortcut: 'Ctrl+A', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'selectAll' })) },
+        { label: 'Expand Selection', shortcut: 'Shift+Alt+Right', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'expandSelection' })) },
+        { label: 'Shrink Selection', shortcut: 'Shift+Alt+Left', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'shrinkSelection' })) },
+        { label: 'Copy Line Up', shortcut: 'Shift+Alt+Up', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'copyLineUp' })) },
+        { label: 'Copy Line Down', shortcut: 'Shift+Alt+Down', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'copyLineDown' })) },
+        { label: 'Move Line Up', shortcut: 'Alt+Up', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'moveLineUp' })) },
+        { label: 'Move Line Down', shortcut: 'Alt+Down', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'moveLineDown' })) }
       ]
     },
     {
@@ -168,17 +212,17 @@ export default function Layout() {
           setActiveConsoleTab('terminal');
           setConsoleDrawerOpen(true);
         }},
-        { label: 'Word Wrap', shortcut: 'Alt+Z' }
+        { label: 'Word Wrap', shortcut: 'Alt+Z', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'wordWrap' })) }
       ]
     },
     {
       id: 'go',
       label: 'Go',
       items: [
-        { label: 'Go to File...', shortcut: 'Ctrl+P' },
-        { label: 'Go to Line/Col...', shortcut: 'Ctrl+G' },
-        { label: 'Next Editor', shortcut: 'Ctrl+PageDown' },
-        { label: 'Previous Editor', shortcut: 'Ctrl+PageUp' }
+        { label: 'Go to File...', shortcut: 'Ctrl+P', action: () => dispatch(setSelectedPanel('explorer')) },
+        { label: 'Go to Line/Col...', shortcut: 'Ctrl+G', action: () => window.dispatchEvent(new CustomEvent('mygo-editor-action', { detail: 'goToLine' })) },
+        { label: 'Next Editor', shortcut: 'Ctrl+PageDown', action: handleNextEditor },
+        { label: 'Previous Editor', shortcut: 'Ctrl+PageUp', action: handlePrevEditor }
       ]
     },
     {
@@ -198,7 +242,7 @@ export default function Layout() {
           setActiveConsoleTab('terminal');
           setConsoleDrawerOpen(true);
         }},
-        { label: 'Split Terminal', shortcut: 'Ctrl+Shift+5' },
+        { label: 'Split Terminal', shortcut: 'Ctrl+Shift+5', action: () => alert('Split terminal session is simulated.') },
         { label: 'Run Active File', action: handleRunCode }
       ]
     },

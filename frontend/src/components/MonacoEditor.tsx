@@ -98,6 +98,85 @@ export default function MonacoEditor({ filePath, fontSize, autosave, theme, onCu
     };
   }, []);
 
+  // 4. Handle global editor events from Layout header menus
+  useEffect(() => {
+    const handleGlobalSave = () => {
+      if (editorRef.current) {
+        const text = editorRef.current.getValue();
+        handleSave(text);
+      }
+    };
+
+    const handleEditorAction = (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (editorRef.current) {
+        const editor = editorRef.current;
+        switch (action) {
+          case 'undo':
+            editor.trigger('menu', 'undo', null);
+            break;
+          case 'redo':
+            editor.trigger('menu', 'redo', null);
+            break;
+          case 'cut':
+            document.execCommand('cut');
+            break;
+          case 'copy':
+            document.execCommand('copy');
+            break;
+          case 'paste':
+            document.execCommand('paste');
+            break;
+          case 'find':
+            editor.getAction('actions.find').run();
+            break;
+          case 'replace':
+            editor.getAction('editor.action.startFindReplaceAction').run();
+            break;
+          case 'selectAll':
+            editor.setSelection(editor.getModel().getFullModelRange());
+            break;
+          case 'expandSelection':
+            editor.getAction('editor.action.smartSelect.expand').run();
+            break;
+          case 'shrinkSelection':
+            editor.getAction('editor.action.smartSelect.shrink').run();
+            break;
+          case 'copyLineUp':
+            editor.getAction('editor.action.copyLinesUpAction').run();
+            break;
+          case 'copyLineDown':
+            editor.getAction('editor.action.copyLinesDownAction').run();
+            break;
+          case 'moveLineUp':
+            editor.getAction('editor.action.moveLinesUpAction').run();
+            break;
+          case 'moveLineDown':
+            editor.getAction('editor.action.moveLinesDownAction').run();
+            break;
+          case 'wordWrap':
+            const currentWrap = editor.getRawOptions().wordWrap;
+            editor.updateOptions({ wordWrap: currentWrap === 'on' ? 'off' : 'on' });
+            break;
+          case 'goToLine':
+            editor.getAction('editor.action.gotoLine').run();
+            break;
+          default:
+            break;
+        }
+        editor.focus();
+      }
+    };
+
+    window.addEventListener('mygo-save-active-file', handleGlobalSave);
+    window.addEventListener('mygo-editor-action', handleEditorAction);
+    
+    return () => {
+      window.removeEventListener('mygo-save-active-file', handleGlobalSave);
+      window.removeEventListener('mygo-editor-action', handleEditorAction);
+    };
+  }, [filePath]);
+
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     editorRef.current = editor;
 

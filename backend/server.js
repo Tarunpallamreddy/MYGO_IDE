@@ -5,6 +5,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+let pty;
+try {
+  pty = require('node-pty');
+} catch (e) {
+  console.warn('node-pty failed to load, falling back to spawn:', e.message);
+}
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -503,10 +509,44 @@ io.on('connection', (socket) => {
 
   // Terminal websocket runner
   socket.on('terminal_create', (data) => {
-    const { terminal_id } = data;
+    const { terminal_id, cols, rows } = data;
     if (!terminal_id) return;
 
     const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+
+    if (pty) {
+      try {
+        const ptyProcess = pty.spawn(shell, [], {
+          name: 'xterm-color',
+          cols: cols || 80,
+          rows: rows || 24,
+          cwd: WORKSPACE_ROOT,
+          env: process.env
+        });
+
+        activeTerminals[terminal_id] = ptyProcess;
+
+        ptyProcess.onData((chunk) => {
+          socket.emit('terminal_output', { terminal_id, data: chunk });
+        });
+
+        ptyProcess.onExit(({ exitCode, signal }) => {
+          socket.emit('terminal_output', { terminal_id, data: `\r\n[Shell process exited]\r\n` });
+          delete activeTerminals[terminal_id];
+        });
+
+        // Output initial greeting
+        socket.emit('terminal_output', {
+          terminal_id,
+          data: `\r\n*** MYGO IDE Remote Shell (${process.platform === 'win32' ? 'PowerShell' : 'Bash'}) Connected via PTY ***\r\n`
+        });
+
+        return;
+      } catch (err) {
+        console.error('Failed to spawn pty process, falling back to spawn:', err.message);
+      }
+    }
+
     try {
       const termProcess = spawn(shell, [], {
         cwd: WORKSPACE_ROOT,
@@ -536,7 +576,7 @@ io.on('connection', (socket) => {
       // Output initial greeting
       socket.emit('terminal_output', {
         terminal_id,
-        data: `\r\n*** MYGO IDE Remote Shell (${process.platform === 'win32' ? 'PowerShell' : 'Bash'}) Connected ***\r\n`
+        data: `\r\n*** MYGO IDE Remote Shell (${process.platform === 'win32' ? 'PowerShell' : 'Bash'}) Connected (Fallback Mode) ***\r\n`
       });
 
     } catch (err) {
@@ -547,8 +587,24 @@ io.on('connection', (socket) => {
   socket.on('terminal_input', (data) => {
     const { terminal_id, data: input } = data;
     const proc = activeTerminals[terminal_id];
-    if (proc && proc.stdin && proc.stdin.writable) {
-      proc.stdin.write(input);
+    if (proc) {
+      if (typeof proc.write === 'function') {
+        proc.write(input);
+      } else if (proc.stdin && proc.stdin.writable) {
+        proc.stdin.write(input);
+      }
+    }
+  });
+
+  socket.on('terminal_resize', (data) => {
+    const { terminal_id, cols, rows } = data;
+    const proc = activeTerminals[terminal_id];
+    if (proc && typeof proc.resize === 'function') {
+      try {
+        proc.resize(cols, rows);
+      } catch (err) {
+        console.error('Failed to resize terminal:', err.message);
+      }
     }
   });
 
